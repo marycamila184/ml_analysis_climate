@@ -1,8 +1,10 @@
-# ml_analysis_climate
+# Evaluating ERA5 as Machine Learning Training Data for Brazilian Climate Modeling
 
 PhD research repository — Osmary Camila Bortoncello Glober | UFPR | 2026
 
-Climate data analysis and machine learning for Brazil, using ERA5, Xavier 2016, BR-DWGD, and CLIMBra datasets.
+Assessment of ERA5 reanalysis reliability as training data for machine learning models
+over Brazil, comparing ERA5 against Xavier 2016 and BR-DWGD gridded datasets across
+six climate variables and six biomes (1980–2013).
 
 ## Structure
 
@@ -12,12 +14,11 @@ ml_analysis_climate/
 │   ├── data/           # Raw and processed NetCDF files (not tracked by git)
 │   ├── scripts/        # Numbered pipeline: 01_download → 05_figures
 │   ├── notebooks/      # Interactive exploration
-│   ├── outputs/        # Metrics CSVs, figures, reliability maps
-│   └── environment.yml # Conda environment
+│   └── outputs/        # Metrics CSVs, figures, reliability maps
 ├── climbra/            # CLIMBra dataset exploration (sandbox)
 │   ├── scripts/        # Download scripts
 │   └── notebooks/      # Analysis notebooks
-└── CLAUDE.md           # AI assistant project instructions (git-ignored)
+└── pyproject.toml      # Python dependencies (uv)
 ```
 
 ## Articles
