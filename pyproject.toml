@@ -1,0 +1,35 @@
+[project]
+name = "ml-analysis-climate"
+version = "0.1.0"
+description = "ERA5 reliability assessment for ML training data over Brazil"
+requires-python = ">=3.10"
+dependencies = [
+    # Core data
+    "xarray",
+    "netcdf4",
+    "dask",
+    "numpy",
+    "pandas",
+    "scipy",
+    # Climate data access
+    "cdsapi",
+    "cfgrib",
+    "earthengine-api",
+    # Geospatial
+    "geopandas",
+    "rioxarray",
+    "rasterio",
+    "cartopy",
+    # Visualization
+    "matplotlib",
+    "seaborn",
+    # Utilities
+    "tqdm",
+    "jupyter",
+    "ipykernel",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "ipython",
+]

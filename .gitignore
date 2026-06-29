@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+
+# Data files (large, stored on external drive)
+*.nc
+*.tif
+*.tiff
+*.grib
+*.grb
+*.h5
+*.hdf5
+data/raw/
+data/processed/
+
+# Outputs (regenerable)
+outputs/metrics/
+outputs/figures/
+outputs/reliability_map/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Planning, specs and AI assistant config (internal only)
+.specs/
+CLAUDE.md
+.claude/
+
+# Credentials and local config
+.cdsapirc
+*.json
+service_account*.json
+.claude/
+
+# CLIMBra download links (contain tokens)
+climbra/scripts/*.txt
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+*.part
