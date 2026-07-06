@@ -26,7 +26,7 @@ GROUPS = {
     "ssr":  ["surface_net_solar_radiation"],
 }
 
-YEARS  = [str(y) for y in range(1980, 2014)]
+YEARS  = [str(y) for y in range(1980, 2025)]
 MONTHS = [f"{m:02d}" for m in range(1, 13)]
 HOURS  = [f"{h:02d}:00" for h in range(24)]
 

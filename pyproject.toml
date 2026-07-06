@@ -14,7 +14,6 @@ dependencies = [
     # Climate data access
     "cdsapi",
     "cfgrib",
-    "earthengine-api",
     # Geospatial
     "geopandas",
     "rioxarray",
@@ -27,9 +26,10 @@ dependencies = [
     "tqdm",
     "jupyter",
     "ipykernel",
+    "gdown>=6.1.0",
 ]
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "ipython",
 ]

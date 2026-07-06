@@ -27,22 +27,31 @@ Downloads raw hourly ERA5 data from the [Copernicus CDS API](https://cds.climate
 **Coverage:** 1980–2013, all months, 24 hours/day, Brazil bounding box (6°N–35°S, 75°W–30°W), 0.25° grid.
 
 ```bash
-python 01_download/download_era5.py
+uv run python 01_download/download_era5.py
 ```
 
 ---
 
-### `download_brdwgd_gee.py`
-Exports BR-DWGD data from Google Earth Engine to Google Drive.
+### `download_brdwgd.py`
+Downloads the official BR-DWGD v3.2.4 daily NetCDF files (native 0.1° grid) from
+[Xavier's Google Drive](https://github.com/AlexandreCandidoXavier/BR-DWGD) via `gdown`.
 
-**Requires:** GEE authentication (`ee.Authenticate()`).
+**Downloads two zip archives + dataset README, then extracts them:**
 
-**Note:** GEE exports are asynchronous. After running, monitor task status at
-[code.earthengine.google.com](https://code.earthengine.google.com) and download
-completed files from Google Drive to `data/raw/brdwgd/{variable}/`.
+| Archive | Variables |
+|---------|-----------|
+| `pr_Tmax_Tmin_NetCDF_Files.zip` | `pr`, `Tmax`, `Tmin` |
+| `ETo_u2_RH_Rs_NetCDF_Files.zip` | `ETo` (unused), `u2`, `RH`, `Rs` |
+
+Each variable is split into three period chunks (1961–1980, 1981–2000, 2001–2024);
+the study period 1980–2013 spans all three. Daily values are kept as published —
+no aggregation, no regridding at download time.
+
+**Output:** `/media/mary-camila/Expansion/brdwgd/raw/`
+Skips existing files, retries failed downloads, resumes partial ones.
 
 ```bash
-python 01_download/download_brdwgd_gee.py
+uv run uv run python 01_download/download_brdwgd.py
 ```
 
 **Xavier 2016:** Manual download required from the publisher. Save files to `data/raw/xavier/`.
@@ -60,11 +69,11 @@ Aligns all three datasets to the same grid and period.
 | Xavier 2016 | 0.25° | Standardize variable names |
 | BR-DWGD | 0.1° | Resample to 0.25° via bilinear interpolation |
 
-**Input:** `data/raw/{era5,xavier,brdwgd}/`
+**Input:** `/media/mary-camila/Expansion/{era5,brdwgd}/raw/` and `data/raw/xavier/`
 **Output:** `data/processed/{era5,xavier,brdwgd}/{variable}.nc`
 
 ```bash
-python 02_preprocessing/harmonize_grids.py
+uv run python 02_preprocessing/harmonize_grids.py
 ```
 
 ---
@@ -83,7 +92,7 @@ Converts ERA5 raw units to match Xavier and BR-DWGD.
 pipeline, these conversions are applied in the preprocessing step.
 
 ```bash
-python 02_preprocessing/unit_conversions.py
+uv run python 02_preprocessing/unit_conversions.py
 ```
 
 ---
@@ -106,7 +115,7 @@ Download from [IBGE](https://www.ibge.gov.br/geociencias/informacoes-ambientais/
 **Output:** `data/processed/biome_mask.nc`
 
 ```bash
-python 02_preprocessing/biome_masks.py
+uv run python 02_preprocessing/biome_masks.py
 ```
 
 ---
@@ -132,7 +141,7 @@ Computes all validation metrics globally (all grid cells combined).
 **Output:** `outputs/metrics/global_metrics.csv`
 
 ```bash
-python 03_metrics/compute_metrics.py
+uv run python 03_metrics/compute_metrics.py
 ```
 
 ---
@@ -146,7 +155,7 @@ Re-computes metrics stratified by each of the 6 Brazilian biomes.
 **Output:** `outputs/metrics/biome_metrics.csv`
 
 ```bash
-python 04_analysis/analysis_by_biome.py
+uv run python 04_analysis/analysis_by_biome.py
 ```
 
 ---
@@ -168,7 +177,7 @@ combining KGE, relative bias, and P90 bias with equal weights.
 - `outputs/reliability_map/category_{variable}.nc` — classified map (1/2/3)
 
 ```bash
-python 04_analysis/reliability_map.py
+uv run python 04_analysis/reliability_map.py
 ```
 
 ---
@@ -185,10 +194,10 @@ python 04_analysis/reliability_map.py
 **Output:** `outputs/figures/fig{1-4}_*.png` at 300 DPI.
 
 ```bash
-python 05_figures/fig1_biome_map.py
-python 05_figures/fig2_bias_maps.py
-python 05_figures/fig3_kge_boxplots.py
-python 05_figures/fig4_reliability_map.py
+uv run python 05_figures/fig1_biome_map.py
+uv run python 05_figures/fig2_bias_maps.py
+uv run python 05_figures/fig3_kge_boxplots.py
+uv run python 05_figures/fig4_reliability_map.py
 ```
 
 ---
@@ -196,8 +205,8 @@ python 05_figures/fig4_reliability_map.py
 ## Data flow summary
 
 ```
-CDS API ──► 01_download ──► raw hourly NetCDF
-GEE     ──►               data/raw/
+CDS API      ──► 01_download ──► raw NetCDF on external drive
+Google Drive ──►               /media/mary-camila/Expansion/{era5,brdwgd}/raw/
 
                            02_preprocessing ──► data/processed/
                                                 (aligned, converted)

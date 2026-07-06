@@ -31,12 +31,13 @@ ml_analysis_climate/
 
 ```bash
 uv sync
-source .venv/bin/activate
 ```
+
+Run any script with `uv run python <script>` (no manual venv activation needed).
 
 ## Data sources
 
 - **ERA5**: ECMWF reanalysis, downloaded via [CDS API](https://cds.climate.copernicus.eu)
 - **Xavier 2016**: Bias-corrected gridded observations for Brazil (0.25°), manual download
-- **BR-DWGD**: Gridded observations (0.1°), exported via Google Earth Engine
+- **BR-DWGD**: Gridded observations (0.1°), official v3.2.4 daily NetCDF release ([Xavier et al.](https://github.com/AlexandreCandidoXavier/BR-DWGD)), downloaded via `gdown`
 - **CLIMBra**: Bias-corrected CMIP6 dataset (EC-EARTH3, 1980–2013)
