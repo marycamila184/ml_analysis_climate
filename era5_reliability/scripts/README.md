@@ -1,20 +1,59 @@
-# Pipeline Documentation — ERA5 Reliability Assessment
+# Pipeline Documentation — ERA5-Land Reliability Assessment
 
-End-to-end pipeline for Article 1: ERA5 vs Xavier 2016 vs BR-DWGD reliability assessment
-for ML training data over Brazil (1980–2013).
+End-to-end pipeline for Article 1: **ERA5-Land vs BR-DWGD** reliability assessment for ML
+training data over Brazil (1980–2013). BR-DWGD is the sole reference; ERA5 (0.25°) is kept
+as a secondary dataset.
 
 Run steps in order. Each step reads from the previous step's output.
+
+> **Migration status.** The project moved from ERA5 (0.25°, three-way with Xavier) to
+> **ERA5-Land (0.1°) vs BR-DWGD**, with a single 0.1° target grid, conservative regrid,
+> decomposed KGE (r, β, γ) + CSI, and a utility test (Test B). **Step 1 below reflects the
+> new design.** Steps 2–5 still document the current v1 scripts and are being migrated —
+> treat their grid (0.25°), Xavier comparisons, bilinear regrid, and composite score as
+> pending revision, not the target design.
 
 ---
 
 ## Step 1 — Download (`01_download/`)
 
-### `download_era5.py`
-Downloads raw hourly ERA5 data from the [Copernicus CDS API](https://cds.climate.copernicus.eu).
+### `download_era5_land.py` (evaluated product)
+Downloads raw hourly ERA5-Land data from the [Copernicus CDS API](https://cds.climate.copernicus.eu)
+(dataset `reanalysis-era5-land`, 0.1°, land-only; **no `product_type` field**).
 
-**Requires:** `~/.cdsapirc` with valid CDS credentials.
+**Requires:** `~/.cdsapirc` with valid CDS credentials and the ERA5-Land licence accepted once on the CDS site.
 
-**Downloads 4 variable groups, one file per group per month:**
+**Downloads 5 variable groups, one file per group per month:**
+
+| Group file | ERA5-Land variables | Used to derive / compare with BR-DWGD |
+|------------|---------------------|----------------------------------------|
+| `tp_{year}_{month}.nc` | `total_precipitation` | `pr` |
+| `temp_{year}_{month}.nc` | `2m_temperature`, `2m_dewpoint_temperature` | `tasmax`, `tasmin` (daily max/min of hourly t2m), `hur` (Magnus from t2m + d2m) |
+| `wind_{year}_{month}.nc` | `10m_u/v_component_of_wind` | `sfcWind` = √(u²+v²) |
+| `ssrd_{year}_{month}.nc` | `surface_solar_radiation_downwards` | `rss` — matches BR-DWGD Rs (incoming shortwave) |
+| `pev_{year}_{month}.nc` | `potential_evaporation` | BR-DWGD ET0 (approximate; see caveat) |
+
+**Deferred (documented in the script header, not downloaded):** the Level 3 hydrological
+package — `volumetric_soil_water_layer_1..4`, `runoff/surface_runoff/sub_surface_runoff`,
+`total_evaporation`, `skin_temperature` — for Article 3 / multivariate state.
+
+**Caveats for preprocessing (Step 2):** accumulated fields (`tp`, `ssrd`, `pev`) need
+deaccumulation; ERA5-Land wind is at 10 m vs BR-DWGD 2 m (log-profile correction); `ssrd`
+is downward shortwave whereas the historical `rss` convention meant *net* radiation;
+`potential_evaporation` is not the same quantity as BR-DWGD's Penman-Monteith ET0 (declare).
+
+**Output:** `/media/mary-camila/Expansion/era5land/raw/{group}/{group}_{year}_{month}.nc`
+**Coverage:** 1980–2013, all months, 24 hours/day, Brazil bounding box (6°N–35°S, 75°W–30°W), 0.1° grid.
+
+```bash
+uv run python 01_download/download_era5_land.py
+```
+
+---
+
+### `download_era5.py` (secondary, ERA5 0.25°)
+Downloads raw hourly ERA5 data (`reanalysis-era5-single-levels`, 0.25°). Kept as a secondary
+dataset — not the evaluated product for Article 1.
 
 | Group file | ERA5 variables | Used to derive |
 |------------|---------------|----------------|
@@ -24,7 +63,6 @@ Downloads raw hourly ERA5 data from the [Copernicus CDS API](https://cds.climate
 | `ssr_{year}_{month}.nc` | `ssr` — surface net solar radiation | `rss` (MJ/m²/day) |
 
 **Output:** `/media/mary-camila/Expansion/era5/raw/{group}/{group}_{year}_{month}.nc`
-**Coverage:** 1980–2013, all months, 24 hours/day, Brazil bounding box (6°N–35°S, 75°W–30°W), 0.25° grid.
 
 ```bash
 uv run python 01_download/download_era5.py

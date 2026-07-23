@@ -1,10 +1,12 @@
-# Evaluating ERA5 as Machine Learning Training Data for Brazilian Climate Modeling
+# Evaluating ERA5-Land as Machine Learning Training Data for Brazilian Climate Modeling
 
 PhD research repository — Osmary Camila Bortoncello Glober | UFPR | 2026
 
-Assessment of ERA5 reanalysis reliability as training data for machine learning models
-over Brazil, comparing ERA5 against Xavier 2016 and BR-DWGD gridded datasets across
-six climate variables and six biomes (1980–2013).
+Assessment of **ERA5-Land** reanalysis reliability as training data for machine learning
+models over Brazil, evaluated against **BR-DWGD** (the sole reference) across six climate
+variables and six biomes (1980–2013). ERA5-Land (0.1°) matches the BR-DWGD grid, removing
+the resolution-alignment problem of the earlier ERA5 (0.25°) design; ERA5 (0.25°) is kept
+as a secondary dataset.
 
 ## Structure
 
@@ -25,7 +27,7 @@ ml_analysis_climate/
 
 | Article | Folder | Status |
 |---------|--------|--------|
-| Article 1 — ERA5 vs Xavier vs BR-DWGD reliability | `era5_reliability/` | In progress (2026) |
+| Article 1 — ERA5-Land vs BR-DWGD reliability for ML training | `era5_reliability/` | In progress (2026) |
 
 ## Setup
 
@@ -37,7 +39,10 @@ Run any script with `uv run python <script>` (no manual venv activation needed).
 
 ## Data sources
 
-- **ERA5**: ECMWF reanalysis, downloaded via [CDS API](https://cds.climate.copernicus.eu)
-- **Xavier 2016**: Bias-corrected gridded observations for Brazil (0.25°), manual download
-- **BR-DWGD**: Gridded observations (0.1°), official v3.2.4 daily NetCDF release ([Xavier et al.](https://github.com/AlexandreCandidoXavier/BR-DWGD)), downloaded via `gdown`
-- **CLIMBra**: Bias-corrected CMIP6 dataset (EC-EARTH3, 1980–2013)
+- **ERA5-Land** (evaluated product): ECMWF reanalysis, 0.1°, land-only, hourly, downloaded via [CDS API](https://cds.climate.copernicus.eu) (`reanalysis-era5-land`)
+- **BR-DWGD** (sole reference): Gridded observations (0.1°), official v3.2.4 daily NetCDF release ([Xavier et al.](https://github.com/AlexandreCandidoXavier/BR-DWGD)), downloaded via `gdown`
+- **ERA5** (secondary): ECMWF reanalysis, 0.25°, downloaded via CDS API (`reanalysis-era5-single-levels`)
+- **CLIMBra**: Bias-corrected CMIP6 dataset (EC-EARTH3, 1980–2013) — Article 2/3
+
+> The earlier three-way design (adding Xavier 2016 as a separate 0.25° product and
+> triangulating references) was dropped for v1.
