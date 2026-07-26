@@ -17,6 +17,8 @@ import os
 import time
 import calendar
 
+from nc_utils import unwrap_zip_nc
+
 BASE_DIR = "/media/mary-camila/Expansion/era5/raw"
 
 GROUPS = {
@@ -51,6 +53,9 @@ def download_group(group, variables, year, month):
         print(f"[SKIP] {group} {year}-{month}")
         return
 
+    # Retrieve to a temporary name and rename only on success, so an interrupted run
+    # cannot leave a truncated file that the skip-if-exists check above would accept.
+    part_file = out_file + ".part"
     days = get_days(year, month)
 
     for attempt in range(3):
@@ -66,10 +71,18 @@ def download_group(group, variables, year, month):
                     "day":          days,
                     "time":         HOURS,
                     "area":         AREA,
-                    "format":       "netcdf",
+                    # New CDS API: `format` is legacy and silently ignored, and
+                    # download_format defaults to "zip". Both keys are required to
+                    # get a plain NetCDF back instead of a zipped one.
+                    "data_format":     "netcdf",
+                    "download_format": "unarchived",
                 },
-                out_file,
+                part_file,
             )
+            # Safety net in case CDS returns a zip anyway (see nc_utils).
+            if unwrap_zip_nc(part_file):
+                print(f"[UNZIP] {group} {year}-{month} (CDS returned a zip)")
+            os.replace(part_file, out_file)
             print(f"[OK] {group} {year}-{month}")
             return
         except Exception as e:
