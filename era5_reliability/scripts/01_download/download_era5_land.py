@@ -66,7 +66,7 @@ GROUPS = {
     # Level 3 (hydrological land state) is documented below but NOT downloaded yet.
 }
 
-YEARS  = [str(y) for y in range(1980, 2014)]  # 1980-2013 (BR-DWGD overlap)
+YEARS  = [str(y) for y in range(1980, 2025)]  # 1980-2025 (BR-DWGD overlap) - https://rmets.onlinelibrary.wiley.com/doi/10.1002/joc.7731
 MONTHS = [f"{m:02d}" for m in range(1, 13)]
 HOURS  = [f"{h:02d}:00" for h in range(24)]
 
@@ -193,8 +193,8 @@ def main():
 
     parser = argparse.ArgumentParser(
         description="Download ERA5-Land hourly raw data via CDS API (1980-2013).")
-    parser.add_argument("--workers", type=int, default=3,
-                        help="concurrent CDS requests (default: 3)")
+    parser.add_argument("--workers", type=int, default=2,
+                        help="concurrent CDS requests (default: 2)")
     parser.add_argument("--delay", type=float, default=5.0,
                         help="minimum seconds between requests (default: 5)")
     parser.add_argument("--retry-max", type=int, default=10,
