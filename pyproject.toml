@@ -27,6 +27,7 @@ dependencies = [
     "jupyter",
     "ipykernel",
     "gdown>=6.1.0",
+    "eccodeslib>=2.48.0.26",
 ]
 
 [dependency-groups]
