@@ -5,11 +5,17 @@ Source: Xavier et al. gridded dataset, distributed via Google Drive
 (https://github.com/AlexandreCandidoXavier/BR-DWGD). Two zip archives cover
 all six variables (pr, Tmax, Tmin, Rs, u2, RH; ETo comes along but is unused),
 each split into three period chunks: 1961-1980, 1981-2000, 2001-2024.
-The study period 1980-2013 spans all three chunks, so everything is kept.
+The study period 1980-2025 spans all three chunks, so everything is kept.
 
 Requires gdown (Google Drive downloads with confirmation-token handling).
 
-Output: /media/mary-camila/Expansion/brdwgd/raw/{zip archives + extracted .nc}
+Consumers: `era5_reliability/` (sole reference for Article 1) and `som_ais_extremes/`
+(target variable - ERA5 precipitation has a known bias and is not used as the target).
+
+Output: {BRDWGD}/{zip archives + extracted .nc}
+
+Usage:
+    uv run python -m ingest.brdwgd.download_brdwgd
 """
 import os
 import time
@@ -17,7 +23,9 @@ import zipfile
 
 import gdown
 
-BASE_DIR = "/media/mary-camila/Expansion/brdwgd/raw"
+from ingest.paths import BRDWGD
+
+BASE_DIR = BRDWGD
 
 # Google Drive file IDs from the official BR-DWGD folder
 # https://drive.google.com/drive/folders/11-qnvwojirAtaQxSE03N0_SUrbcsz44N
@@ -26,9 +34,6 @@ ARCHIVES = {
     "ETo_u2_RH_Rs_NetCDF_Files.zip": "1aGdOHRT10W8oBWvE5IvmEAqJCNQOYYid",
     "README.txt":                    "1_VYa1Kz7TPpT7tDUyArMg-n5TCbx6IRe",
 }
-
-os.makedirs(BASE_DIR, exist_ok=True)
-
 
 def download_archive(name, file_id):
     out_file = os.path.join(BASE_DIR, name)
@@ -66,9 +71,16 @@ def extract_archive(zip_path):
             zf.extract(member, BASE_DIR)
 
 
-for name, file_id in ARCHIVES.items():
-    path = download_archive(name, file_id)
-    if path and name.endswith(".zip"):
-        extract_archive(path)
+def main():
+    os.makedirs(BASE_DIR, exist_ok=True)
 
-print("\nDone. NetCDF files are in", BASE_DIR)
+    for name, file_id in ARCHIVES.items():
+        path = download_archive(name, file_id)
+        if path and name.endswith(".zip"):
+            extract_archive(path)
+
+    print("\nDone. NetCDF files are in", BASE_DIR)
+
+
+if __name__ == "__main__":
+    main()

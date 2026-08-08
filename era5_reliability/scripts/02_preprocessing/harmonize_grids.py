@@ -1,5 +1,5 @@
 """
-Align all three datasets to the same grid (0.25 deg) and period (1980-2013).
+Align all three datasets to the same grid (0.25 deg) and period (1980-2025).
 
 - ERA5: already at 0.25 deg, clip to Brazil bounding box
 - Xavier: already at 0.25 deg, standardize variable names
@@ -10,7 +10,7 @@ Output: data/processed/{era5,xavier,brdwgd}/{variable}.nc
 import xarray as xr
 import os
 
-PERIOD = slice("1980-01-01", "2013-12-31")
+PERIOD = slice("1980-01-01", "2025-12-31")
 VARIABLES = ["pr", "tasmax", "tasmin", "rss", "sfcWind", "hur"]
 
 for v in ["era5", "xavier", "brdwgd"]:

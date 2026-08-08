@@ -6,8 +6,9 @@ ERA5 raw units -> target units:
   ssr : J/m2   -> MJ/m2/day  (/1e6)
   hur : derived from 2m_temperature + 2m_dewpoint_temperature via Magnus equation
 
-Note: these conversions are already applied in download_era5.py when using
-hourly deaccumulation. Run this script only if ERA5 was downloaded as daily data.
+Note: the downloads in `ingest/` store raw NetCDF untransformed, so these conversions
+belong to the hourly deaccumulation path in this stage. Run this script standalone only
+if ERA5 was obtained as daily data.
 """
 import xarray as xr
 import numpy as np
