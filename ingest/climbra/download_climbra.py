@@ -1,12 +1,30 @@
+"""Download the CLIMBra V5 bias-corrected CMIP6 dataset from its open repository.
+
+Driven by a links file exported from the repository's download basket: one URL per
+line, each carrying the target path and filename as query parameters. The file holds
+session tokens, so it is git-ignored - re-export it if the links have expired.
+
+Consumers: `climbra/` (exploratory) and `som_ais_extremes/` (plausibility envelope -
+the 1st and 99th percentiles of each variable in the 2050 and 2100 projections).
+
+Output: {CLIMBRA}/<path from the URL>
+
+Usage:
+    uv run python -m ingest.climbra.download_climbra
+"""
 import os
 import time
 import requests
 from urllib.parse import urlparse, parse_qs
 from concurrent.futures import ThreadPoolExecutor
 
+from ingest.paths import CLIMBRA
+
 # ==== CONFIG ====
-LINKS_FILE = "609b7ff93f0d4d1a9ba6eb709027c6ad.txt"
-BASE_DIR = "/media/mary-camila/Expansion/climbra"
+# Links file lives beside this script; it is git-ignored (contains tokens).
+LINKS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                          "609b7ff93f0d4d1a9ba6eb709027c6ad.txt")
+BASE_DIR = CLIMBRA
 MAX_WORKERS = 2
 CHUNK_SIZE = 1024 * 1024
 RETRIES = 3

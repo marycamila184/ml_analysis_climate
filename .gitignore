@@ -35,7 +35,7 @@ service_account*.json
 .claude/
 
 # CLIMBra download links (contain tokens)
-climbra/scripts/*.txt
+ingest/climbra/*.txt
 
 # OS
 .DS_Store

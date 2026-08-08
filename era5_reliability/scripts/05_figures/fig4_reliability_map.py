@@ -39,6 +39,6 @@ cbar = plt.colorbar(im, ax=axes, ticks=[1, 2, 3], shrink=0.6)
 cbar.set_ticklabels(["Low", "Moderate", "High"])
 cbar.set_label("ERA5 Reliability for ML Training")
 
-fig.suptitle("ERA5 Reliability Map — Brazil (1980–2013)", fontsize=14)
+fig.suptitle("ERA5 Reliability Map — Brazil (1980–2025)", fontsize=14)
 plt.savefig("outputs/figures/fig4_reliability_map.png", dpi=300, bbox_inches="tight")
 print("[OK] outputs/figures/fig4_reliability_map.png")
