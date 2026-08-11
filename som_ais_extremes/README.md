@@ -168,8 +168,8 @@ already on disk if a diagnostic field is wanted.
 ### 3.4 What already fits without re-downloading
 
 - **Region.** Article 1's ERA5 crop is the Brazil box `N 6, W −75, S −35, E −30`, which
-  fully contains the plan's South/Southeast box `lat −35…−14, lon −60…−38`. Its `tp` can
-  simply be subset — no new `tp` request needed.
+  fully contains this project's predictor box `lat −35…−10, lon −60…−38` (see §3.7). Its
+  `tp` can simply be subset — no new `tp` request needed.
 - **Resolution.** Those files are 0.25°; the plan wants 1.0–1.5° for regime work, so
   coarsening is a preprocessing step, not a re-download.
 - **Period.** Article 1's 0.25° groups cover 1980–2025, matching the plan's window and the
@@ -177,12 +177,12 @@ already on disk if a diagnostic field is wanted.
 
 ### 3.5 Download sizing
 
-Retrieving the 10 synoptic fields over the South/Southeast box at 0.25°, 6-hourly
+Retrieving the 10 synoptic fields over the predictor box (§3.7) at 0.25°, 6-hourly
 (00/06/12/18 UTC), 1980–2025:
 
-- ~7,600 grid points per field-time (≈30 KB float32)
+- ~9,000 grid points per field-time (≈36 KB float32)
 - 4 steps/day × ~16,800 days ≈ 67,200 steps
-- ≈2 GB per variable-level → **≈20 GB total**
+- ≈2.4 GB per variable-level → **≈24 GB total**
 
 Two decisions worth making before the first request:
 
@@ -190,10 +190,10 @@ Two decisions worth making before the first request:
    00/06/12/18 UTC. Hourly would be 6× the volume for no methodological gain. (Article 1
    needed hourly because it derives daily max/min; this project does not.)
 2. **Download at 0.25° and regrid locally**, rather than using the CDS `grid` parameter.
-   20 GB is cheap, and keeping native resolution leaves the option of testing regime
+   24 GB is cheap, and keeping native resolution leaves the option of testing regime
    sensitivity to grid spacing without a second multi-day download.
 
-At ~20 GB, the plan's phase-0 target of "1.5 TB → under 50 GB" is met by scoping the
+At ~24 GB, the plan's phase-0 target of "1.5 TB → under 50 GB" is met by scoping the
 request correctly rather than by aggressive post-processing.
 
 ### 3.6 Paths
@@ -210,6 +210,70 @@ hardcoded anywhere in this project.
 | Processed Zarr | `som_ais_extremes/data/processed/` |
 
 Large files (`.nc`, `.zarr`, `.tif`) live on the external drive and are git-ignored.
+
+### 3.7 Decision — region, and why the predictor box is larger than the target
+
+Decided 2026-08-11, before any synoptic data was downloaded (`ingest.status` showed
+0/552 months for every group). Recorded here because it is expensive to revisit: changing
+the box after the SOM is trained means a multi-day re-download and invalidated regimes.
+
+**Two domains, deliberately different.**
+
+| Domain | Box | Used for |
+|---|---|---|
+| **Predictor** (SOM input) | `N −10, W −60, S −35, E −38` | Z500, MSLP, 850 T/q/u/v, 250 u/v, TCWV, CAPE |
+| **Evaluation** (target) | South/Southeast, per §4 | BR-DWGD extremes, record breaks, GEV, POD/FAR/CSI |
+
+`DEFAULT_AREA` in [`../ingest/era5/download_era5_synoptic.py`](../ingest/era5/download_era5_synoptic.py)
+is the predictor box. It moves the northern edge from the plan's original −14 to **−10**.
+
+**Why not all of Brazil.** The predictor set is seven pressure-level dynamical fields out
+of ten — a subtropical predictor set, and it works because geostrophic balance holds
+there. Toward the equator Coriolis goes to zero and the atmosphere sits near weak-
+temperature-gradient balance: Z500 and MSLP variance over Amazonia is a fraction of its
+value at 30°S, so a SOM trained there would separate nodes by seasonal cycle and noise
+rather than by nameable regimes. Three further reasons:
+
+- **Scale.** At 1.0–1.5° / 6-hourly the grid resolves fronts, extratropical cyclones,
+  SACZ, the low-level jet, MCCs and cutoff lows (1000+ km, 2–5 day life cycles). Amazon
+  extremes come from coastal squall lines and diurnal convection (~100 km, sub-daily) —
+  subgrid in this predictor space, so the causative system is simply absent from the state.
+- **Ground truth.** Criteria 1–3 in §4.2 rest on BR-DWGD grid-point maxima being real.
+  BR-DWGD is interpolated from gauges, densest in S/SE and sparsest in the Amazon, with a
+  station network that changes across 1980–2014. Northern "record breaks" would partly be
+  interpolation and network artifacts.
+- **The method's own bet.** §1 stakes the project on the self being compact inside a SOM
+  node. That compactness *is* the strength of the synoptic conditioning; weak conditioning
+  in the tropics leaves the self diffuse and removes the reason the method should work.
+
+**Why −10 rather than −14.** The SACZ runs NW–SE from southern Amazonia (~8–12°S) across
+MG/SP/RJ and out over the subtropical Atlantic, and is the dominant austral-summer extreme
+driver for the Southeast. A cut at 14°S slices it through the middle, keeping the oceanic
+half and dropping the continental anchor where it meets the low-level jet's moisture
+transport. Since SACZ episodes differ mainly in *where* the band sits — northward-displaced
+rains on Minas, southward-displaced on São Paulo/Rio — truncation invites the SOM to
+collapse two physically distinct regimes into one node, and position is precisely what
+determines the flood footprint.
+
+Enlarging the *input* while holding the *target* fixed is what makes this consistent with
+the paragraph above: the added 10–14°S rows carry little geopotential variance, which is
+harmless as SOM input and would have been a real problem as evaluation area. Cost is +19%
+volume (~20 → ~24 GB, §3.5) — negligible against the 50 GB phase-0 budget.
+
+**What this decision assumes, and how it is checked.** The SOM does not read the grid
+directly — a PCA to `d` = 10–15 sits between the crop and the training, so the added cells
+only buy separability if SACZ-position variability survives into the retained components.
+That is expected (band displacement is a large-scale, high-variance mode that should load
+on the leading EOFs) but unverified. §6 step 4 makes it an explicit phase-0 check.
+
+Note also what the enlargement does *not* do: the SOM has no notion of "reasons" for a
+node assignment — the BMU is simply the nearest codebook vector. The gain is that two
+physically distinct configurations land far apart in input space instead of nearly on top
+of each other, so they can occupy separate nodes. Separability, not explanation.
+
+**Unchanged.** Widening further via `--area` remains the documented mitigation if the
+phase-0 event count comes up short (§6, and PLAN.md risk table) — to be done before
+anything is built on the regimes, not after.
 
 ---
 
@@ -301,7 +365,7 @@ of the libraries above are not yet declared there and must be added before phase
    uv run python -m ingest.era5.download_era5_synoptic --years 1980 1980 --groups plev500
    ```
 
-2. Launch the full retrieval (~20 GB, runs for days — it is resumable):
+2. Launch the full retrieval (~24 GB, runs for days — it is resumable):
 
    ```bash
    uv run python -m ingest.era5.download_era5_synoptic --workers 3
@@ -309,12 +373,21 @@ of the libraries above are not yet declared there and must be added before phase
 
 3. Add the missing dependencies to the root `pyproject.toml` (`zarr`, `minisom`,
    `scikit-learn`, `pyribs` or `qdpy`, `pyextremes`, `xarray-regrid`), then `uv sync`.
-4. Confirm the extended (generative) version and publication horizon with the advisor.
-5. Confirm T1 and T2 deadlines and realign the schedule.
-6. Run the extreme-event count over the test period — 30–40 well-distributed cases sustain
+4. **Check that the enlarged predictor box paid off.** The −10 northern edge (§3.7) only
+   helps if SACZ-position variability survives the PCA into the retained components
+   (`d` = 10–15) — otherwise the extra rows are 4 GB of nothing. After the first PCA fit,
+   plot the leading EOFs and confirm that one of them looks like a SACZ displacement or
+   dipole mode, with structure north of 14°S. Band displacement is a large-scale,
+   high-variance pattern and should load on the leading components, but this is an
+   assumption to verify, not a certainty. If no such mode appears, revisit the crop before
+   training the SOM — and note that the widening cannot help separate regimes the PCA has
+   already discarded.
+5. Confirm the extended (generative) version and publication horizon with the advisor.
+6. Confirm T1 and T2 deadlines and realign the schedule.
+7. Run the extreme-event count over the test period — 30–40 well-distributed cases sustain
    the validation, 5 do not. If the count is short, widen the region with `--area` before
    anything else is built on top.
-7. Read Lehman & Stanley (2011) and Ji & Dasgupta (2007) — the two that most change design
+8. Read Lehman & Stanley (2011) and Ji & Dasgupta (2007) — the two that most change design
    decisions.
 
 ---

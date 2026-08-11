@@ -3,7 +3,7 @@
 Consumer: `som_ais_extremes/` - these are the SOM's input fields. Nothing else in the
 repository uses them, and no existing download covers them.
 
-Two CDS datasets, 6-hourly at 00/06/12/18 UTC, over South/Southeast Brazil:
+Two CDS datasets, 6-hourly at 00/06/12/18 UTC, over the South/Southeast predictor box:
 
   reanalysis-era5-pressure-levels
     plev500 -> geopotential                        @ 500 hPa  # troughs and ridges
@@ -30,14 +30,29 @@ Deliberate choices, both worth knowing before re-running this:
     four main synoptic hours. Hourly would be 6x the volume for no methodological gain.
     (Article 1 needs hourly because it derives daily max/min; this project does not.)
   - Native 0.25 deg, regridded to 1.0-1.5 deg locally in 02_preprocessing rather than
-    server-side via the CDS `grid` key. The full retrieval is only ~20 GB, and keeping
+    server-side via the CDS `grid` key. The full retrieval is only ~24 GB, and keeping
     native resolution allows testing regime sensitivity to grid spacing without a
     second multi-day download.
 
-Region defaults to the plan's South/Southeast box. Covering all of Brazil multiplies
-the volume and dilutes the synoptic regimes, which are regional. If the phase-0
-extreme-event count comes up short, widening the box with --area is the documented
-mitigation - do it before anything is built on top of the regimes, not after.
+Region: the plan's South/Southeast box with the northern edge at 10S instead of 14S.
+This is the PREDICTOR domain, and it is deliberately larger than the domain where
+extremes are evaluated - detection and validation stay over South/Southeast, on
+BR-DWGD, where the gauge network is dense. The SOM classifies a spatial pattern, so
+the input box must contain the whole system that drives the events, not a version
+truncated by a box edge. A cut at 14S slices the SACZ through its middle, keeping the
+oceanic half and dropping the continental anchor over southern Amazonia (~8-12S) where
+the band meets the low-level jet's moisture transport. Since SACZ episodes differ
+mainly in WHERE the band sits - a northward-displaced SACZ rains on Minas, a
+southward-displaced one on Sao Paulo/Rio - truncating the northern portion invites the
+SOM to collapse two physically distinct regimes into one node, and position is exactly
+what determines the flood footprint. The extra 4 degrees of latitude cost ~19% volume
+(~20 GB -> ~24 GB); the tropical rows carry little geopotential variance, which is
+harmless in the input and would have been a real problem in the target.
+
+Covering all of Brazil is still the wrong move: it multiplies the volume and dilutes
+the synoptic regimes, which are regional. If the phase-0 extreme-event count comes up
+short, widening further with --area remains the documented mitigation - do it before
+anything is built on top of the regimes, not after.
 
 ERA5-Land is deliberately NOT used here: it is land-only, and SACZ, frontal systems and
 the subtropical jet are defined partly over the Atlantic.
@@ -85,7 +100,9 @@ ALL_GROUPS = sorted({**PRESSURE_GROUPS, **SINGLE_GROUPS})
 DEFAULT_YEARS = (1980, 2025)
 
 # Bounding box: N, W, S, E - South/Southeast Brazil.
-DEFAULT_AREA = [-14, -60, -35, -38]
+# Predictor box, N/W/S/E. North edge at -10 (not the plan's original -14) to keep the
+# SACZ axis intact - see the region note in the module docstring.
+DEFAULT_AREA = [-10, -60, -35, -38]
 
 
 def main():
