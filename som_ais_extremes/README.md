@@ -41,7 +41,8 @@ Negative selection was largely abandoned because it does not scale in high dimen
 The bet of this work is that **regime conditioning fixes that**, because inside a single
 SOM node the self occupies a compact region. If the bet fails, the method fails — which
 is why the dimensionality test is the first experiment to run, not an implementation
-detail.
+detail. Its result also feeds grid selection (§4.4): node count sets how many self samples
+each regime gets.
 
 ---
 
@@ -53,11 +54,14 @@ ERA5 synoptic fields (6-hourly, pressure + single level)
         ▼  02_preprocessing
   daily aggregation → regional crop → regrid (1.0–1.5°) → Zarr
         │
+        ▼  feature construction (§4.3)
+  deseasonalise → per-point z-score → sqrt(cos φ) weighting
+        │
         ▼  dimensionality reduction (PCA, d = 10–15)
   X (N days, d)
         │
         ▼  03_som
-  SOM (5×4 grid) → regime label k for each day
+  SOM (5×4 grid, starting candidate — size selected per §4.4) → regime label k per day
         │
         ▼  04_negative_selection
   for each regime k:
@@ -307,7 +311,124 @@ Detrend or use a non-stationary GEV, and document the choice.
 Sanity check: the automatic list must contain Petrópolis 2022, Rio Grande do Sul 2024 and
 the 2014–2015 Southeast drought. If it does not, the criterion is miscalibrated.
 
-### 4.3 Core evaluation (detection)
+### 4.3 Feature construction — what the Euclidean distance actually sees
+
+Both the SOM and the V-detector use Euclidean distance, which has no notion of physical
+units, spatial area or seasonality. Everything that should influence "how far apart are
+these two days" has to be built into the vector beforehand. Fixed order, because two of
+these steps do not commute:
+
+```
+crop → daily aggregation → regrid (1.0–1.5°)
+     → remove seasonal cycle
+     → per-point z-score
+     → sqrt(cos φ) area weighting
+     → PCA (d = 10–15)   → SOM
+```
+
+Every statistic above — climatology, mean, standard deviation, PCA basis — is fitted on
+**1980–2014 only** and applied unchanged to 2015–2025, per §4.1.
+
+**1. Remove the seasonal cycle first.** This is the step with the largest effect on the
+result and the easiest to skip. If raw fields are standardised against a single
+all-period mean, the dominant variance in `t850`, `z500` and `tcwv` is the annual cycle,
+and the SOM organises its nodes into summer and winter rather than into dynamical
+regimes. Subtract a smoothed daily climatology (harmonics or a ~15-day moving window) so
+the vector carries anomalies. The alternative used in much of the synoptic literature is
+to train per season — cleaner, but it fragments an already limited sample across seasons
+and collides with the per-node sample floor in §4.4. Decision: anomalies, full year;
+revisit if regime composites turn out season-dominated at the September checkpoint.
+
+**2. Per-point z-score.** Standardise each grid point of each field independently across
+the training period. Without it, regions of naturally high variance dominate the distance
+and the SOM organises around them rather than around pattern shape. Note this also fixes
+cross-field commensurability at the level of units — geopotential in m²/s² and CAPE in
+J/kg cannot share a Euclidean norm otherwise.
+
+What it does *not* fix is cross-field **budget**: with all ten fields on the same grid,
+each contributes an equal number of unit-variance components, so the seven dynamical
+fields jointly outweigh `tcwv` and `cape` roughly 7:3. That is defensible for regime
+definition — regimes are circulation, and §3.3 already argues this — but it is a choice,
+not a neutral default, and belongs in the article's methods.
+
+**3. Latitude weighting, `sqrt(cos φ)`.** ERA5 grid cells shrink toward the poles, so
+equal-weighted points give the southern part of the domain more say per unit area than the
+northern part. The square root is the correct exponent because the distance squares its
+inputs: `Σ cos(φ)·x²  =  Σ (sqrt(cos φ)·x)²`, so weighting the *data* by `sqrt(cos φ)`
+yields an area-weighted squared distance.
+
+**Order matters, and getting it backwards silently does nothing.** The weighting must be
+applied *after* the z-score. Applied before, the per-point standardisation divides by a
+standard deviation that already contains the constant factor and cancels it exactly —
+leaving code that looks correct, runs clean, and has no effect.
+
+Magnitude for this domain: over 10°S–35°S, `sqrt(cos φ)` runs 0.992 → 0.905, about a
+**10% spread** in point weight. Small, and unlikely to change which regimes appear — but
+cheap, standard in EOF practice, and one line. Worth noting that widening the box to 10°S
+(§3.7) slightly increased this spread, so the argument for including it is marginally
+stronger than it was.
+
+**4. Open decision — scaling of the PC scores.** The SOM sees PC scores, not the grid, so
+one more choice sits between them. Raw scores let the leading modes dominate the distance
+in proportion to their explained variance; unit-variance scores give all `d` retained
+modes an equal vote. The first preserves the physical dominance of the large-scale modes,
+the second sharpens minor regime distinctions at the cost of amplifying noise in the
+trailing components. Default here is **raw scores**; test the alternative during the
+dimensionality experiment, since it changes the geometry the V-detector inherits.
+
+### 4.4 SOM grid size — how it is chosen
+
+The 5×4 grid in §2 is a **starting candidate**, not a settled choice. Synoptic
+climatology conventionally works at roughly 12–35 nodes, and 5×4 sits inside that range,
+but the size has to be justified rather than assumed.
+
+**Candidates and metrics.** Train 4×4, 5×4, 5×5 and 6×5, and report for each:
+
+| Metric | What it measures |
+|---|---|
+| Quantization error (QE) | mean distance from each day to its best-matching unit |
+| Topographic error (TE) | fraction of days whose 1st and 2nd BMUs are non-adjacent on the grid |
+| Min samples per node | population of the least-populated regime |
+
+All three computed **on the train window only** (1980–2014). Choosing the map size on
+2015–2025 would leak the test period into a structural decision, which §4.1 forbids as
+firmly as it forbids leaking into the PCA or the SOM weights.
+
+**Why QE alone cannot decide.** QE decreases monotonically with node count — in the limit
+of one node per day it reaches zero. A rule of the form "if QE is too high, enlarge the
+grid" therefore always says *bigger* and never says stop; used alone it selects an
+overfitted map. TE is the counterweight: larger maps fold more easily, so TE tends to rise
+with size (not strictly monotonically). The usable criterion is joint — **the smallest map
+whose QE has flattened into an elbow while TE is still low.**
+
+Generic SOM heuristics do not transfer here. The SOM Toolbox default of ≈5·√N nodes gives
+~570 nodes for N ≈ 12,800 training days; that is a density model, not a set of
+interpretable synoptic regimes. Where the generic heuristic and climatological practice
+disagree by an order of magnitude, climatological practice wins.
+
+**The constraint that is expected to bind.** Node count sets samples per node, and samples
+per node is the input budget for negative selection (§2, `04_negative_selection`). At 5×4
+= 20 nodes, ~12,800 training days average ~640 days/node — but regime frequencies are
+strongly unbalanced, so rare regimes may hold only 200–300. At 6×6 = 36 nodes that roughly
+halves, while the self still has to be characterised in `d` = 10–15 dimensions. This runs
+directly into the failure mode §1 names as fatal.
+
+So there is a **ceiling on grid size coming from the AIS side, independent of QE and TE**,
+and it is expected to bind first. A map that scores better on QE can still yield a worse
+detector repertoire. The floor on min-samples-per-node comes out of the dimensionality
+test — the first experiment scheduled in the plan — which makes that test an input to grid
+selection, not merely a feasibility check.
+
+**Decision rule.** Smallest grid satisfying all of: QE past its elbow, TE low, and
+min samples per node above the dimensionality test's floor. Report the full candidate
+table rather than silently picking one, so "why 5×4" has an answer in the article.
+
+**Qualitative validation is a veto, not a replacement.** The composite-map naming against
+Brazilian synoptic literature (SACZ, frontal systems, MCCs) stays mandatory. A grid that
+wins on QE/TE and produces unnameable composites still fails — credibility of the regimes
+is the point of the September checkpoint.
+
+### 4.5 Core evaluation (detection)
 
 Mandatory baselines:
 
@@ -320,7 +441,7 @@ Mandatory baselines:
 Metrics: POD, FAR, CSI, precision-recall curve, Brier score. Reported per forecast
 horizon *h* = 1, 3, 5, 7 days, showing where skill collapses.
 
-### 4.4 Extended evaluation (generation)
+### 4.6 Extended evaluation (generation)
 
 - **Level 1 — retained-event coverage.** For each real 2015–2025 extreme, distance to the
   nearest synthetic event. Compared against bootstrap resampling, Gaussian perturbation
