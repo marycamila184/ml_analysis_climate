@@ -32,7 +32,8 @@ daily ERA5 fields
   dimensionality reduction (PCA, d = 10–15)
         │
         ▼
-  SOM (5×4 grid)  ──►  regime k for each day
+  SOM (5×4 grid, starting candidate)  ──►  regime k for each day
+        │              size chosen by QE / TE / min-samples-per-node — README §4.4
         │
         ▼
   for each regime k:
@@ -99,9 +100,12 @@ Assumed: semester from August to December 2026; extension from January to March 
 
 Source: Copernicus Climate Data Store, via the `cdsapi` library.
 
-**Suggested crop:** South/Southeast Brazil — latitude −35 to −14, longitude −60 to −38.
-Covering all of Brazil multiplies the volume and dilutes the synoptic regimes, which are
-regional.
+**Crop:** South/Southeast Brazil — latitude −35 to **−10**, longitude −60 to −38. This is
+the *predictor* box (SOM input); extremes are still detected and validated over
+South/Southeast on BR-DWGD. The northern edge was moved from the originally suggested −14
+to −10 so the SACZ axis is not truncated through its middle — see README §3.7 for the
+full decision. Covering all of Brazil remains the wrong move: it multiplies the volume and
+dilutes the synoptic regimes, which are regional.
 
 **Period:** 1980–2025, daily temporal resolution (aggregated from hourly), spatial
 resolution regridded to 1.0° or 1.5° (0.25° is not needed to characterise a synoptic
@@ -151,11 +155,16 @@ Download only what those two things need; the full ensemble is not required.
 
 ```
 hourly download → daily aggregation → regional crop → regrid →
-concatenation → Zarr with chunking on the time axis → PCA → X (N, d)
+concatenation → Zarr with chunking on the time axis →
+deseasonalise → per-point z-score → sqrt(cos lat) weighting →
+PCA → X (N, d)
 ```
 
 Goal: **from ~1.5 TB to under 50 GB**. Without this, every iteration takes hours and the
 schedule does not close.
+
+The three steps between Zarr and PCA are not cosmetic and their order is fixed — the
+latitude weighting must follow the z-score or it cancels exactly. See README §4.3.
 
 Tools: `xarray`, `dask`, `zarr`, `cdsapi`, `xesmf` or `xarray-regrid`, `scikit-learn`
 (incremental PCA).
